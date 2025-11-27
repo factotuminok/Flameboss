@@ -1,0 +1,7 @@
+﻿services:
+  flameboss:
+    image: flameboss
+    build:
+      context: .
+      dockerfile: Flameboss/Dockerfile
+

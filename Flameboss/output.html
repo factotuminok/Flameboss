@@ -1,0 +1,51 @@
+<html>
+<head><title>Flame Boss</title>
+    <script>var h = true;
+
+    function shc() {
+        var o = document.getElementById('k');
+        if (h) {
+            o.type = 'text'
+        } else {
+            o.type = 'password'
+        }
+        ;h = !h;
+    }</script>
+</head>
+<body><h1>Flame Boss Controller</h1>
+<h2>Temperature Control</h2>
+<table>
+    <tr>
+        <td>Set</td>
+        <td align='right'><br/></td>
+    </tr>
+    <tr>
+        <td>Pit</td>
+        <td align='right'>177<br/></td>
+    </tr>
+    <tr>
+        <td>Blower</td>
+        <td align='right'>0%<br/></td>
+    </tr>
+</table>
+<h2>Meat Temperatures</h2>
+<table>
+    <tr>
+        <td>Meat 1</td>
+        <td align='right'>178<br/></td>
+    </tr>
+    <tr>
+        <td>Meat 2</td>
+        <td align='right'>---<br/></td>
+    </tr>
+    <tr>
+        <td>Meat 3</td>
+        <td align='right'>---<br/></td>
+    </tr>
+</table>
+<h2>Configure WiFi</h2>Station MAC address: bc:ff:4d:e0:31:af<br><br>
+<form action='/' method='POST' accept-charset='UTF-8'>SSID: <input type='text' name='s'/><br/>Password: <input
+        type='password' name='k' id='k'/> <a href='#' onclick='shc();'>show/hide</a> <input type='submit'
+                                                                                            value='Submit'></form>
+</body>
+</html>
