@@ -1,0 +1,46 @@
+## Ignore build outputs
+bin/
+obj/
+out/
+.idea/
+
+## Ignore user-specific files
+*.user
+*.userosscache
+*.suo
+*.sln.docstates
+
+## Ignore Visual Studio cache/options
+.vs/
+*.vscode/
+
+## Ignore temporary files
+*.tmp
+*.log
+*.temp
+*.pidb
+*.svclog
+
+## Ignore package restore folders
+packages/
+*.nupkg
+*.snupkg
+
+## Ignore environment & secrets
+*.env
+appsettings.*.json
+!appsettings.json  # Keep base config
+
+## Ignore publish outputs
+publish/
+wwwroot/lib/
+
+## Ignore test results
+TestResult*/
+*.trx
+*.coverage
+*.coveragexml
+
+## Ignore OS-specific files
+.DS_Store
+Thumbs.db
