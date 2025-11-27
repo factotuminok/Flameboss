@@ -15,8 +15,8 @@ public class MqttService
         _client = factory.CreateMqttClient();
 
         var options = new MqttClientOptionsBuilder()
-            .WithTcpServer(Environment.GetEnvironmentVariable("MqttBroker") ?? "localhost")
-            .WithCredentials(Environment.GetEnvironmentVariable("MqttUsername"), Environment.GetEnvironmentVariable("MqttPassword"))
+            .WithTcpServer(Environment.GetEnvironmentVariable("MQTTBROKER") ?? "localhost")
+            .WithCredentials(Environment.GetEnvironmentVariable("MQTTUSERNAME"), Environment.GetEnvironmentVariable("MQTTPASSWORD"))
             .WithClientId("FlameBossMonitor")
             .WithCleanSession()
             .Build();
@@ -55,8 +55,8 @@ public class MqttService
     {
         var device = new
         {
-            identifiers = new[] { Environment.GetEnvironmentVariable("DeviceName") },
-            name = Environment.GetEnvironmentVariable("FriendlyName"),
+            identifiers = new[] { Environment.GetEnvironmentVariable("DEVICENAME") },
+            name = Environment.GetEnvironmentVariable("FRIENDLYNAME"),
             manufacturer = "Flame Boss",
             model = "WiFi Controller"
         };
@@ -74,7 +74,7 @@ public class MqttService
             string configTopic = $"homeassistant/sensor/flameboss_{id}/config";
             var configPayload = new
             {
-                name = $"{Environment.GetEnvironmentVariable("FriendlyName")} {name}",
+                name = $"{Environment.GetEnvironmentVariable("FRIENDLYNAME")} {name}",
                 unique_id = $"flameboss_{id}",
                 state_topic = $"homeassistant/sensor/flameboss_{id}/state",
                 unit_of_measurement = unit,
