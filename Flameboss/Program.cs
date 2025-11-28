@@ -8,19 +8,23 @@ builder.Services.AddOpenApi();
 // Configuration (edit these!)
 var config = new Configuration
 {
-    FlameBossUrl = "http://192.168.1.178/",           // Default Flame Boss AP
-    //FlameBossUrl = "http://flameboss.lan/",    // Or use mDNS if on WiFi
-    MqttBroker = "mqtt.lan:1883",                   // Your MQTT broker
-    MqttUsername = "mqtt",                              // Optional
-    MqttPassword = "MJL4$l3w1s",                              // Optional
-    DeviceName = "flameboss_bbq",
-    FriendlyName = "Flame Boss BBQ"
+    FlameBossUrl = Environment.GetEnvironmentVariable("FLAMEBOSSURL"),      // Default Flame Boss AP
+    MqttBroker = Environment.GetEnvironmentVariable("MQTTBROKER"),               // Your MQTT broker
+    MqttUsername = Environment.GetEnvironmentVariable("MQTTUSERNAME"),                      // MQTT Username
+    MqttPassword = Environment.GetEnvironmentVariable("MQTTPASSWORD"),                // MQTT Password
+    DeviceName = Environment.GetEnvironmentVariable("DEVICENAME"),
+    FriendlyName = Environment.GetEnvironmentVariable("FRIENDLYNAME"),
+    PollSeconds = Environment.GetEnvironmentVariable("POLLSECONDS"),
 };
 
+// Add services
 builder.Services.AddSingleton(config);
 builder.Services.AddHttpClient();
-builder.Services.AddHostedService<FlameBossPollingService>();
 builder.Services.AddSingleton<MqttService>();
+builder.Services.AddSingleton<FlameBossService>();
+builder.Services.AddHostedService<FlameBossPollingService>();
+builder.Services.AddControllers();
+builder.Services.AddEndpointsApiExplorer();
 
 var app = builder.Build();
 
@@ -31,10 +35,9 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
-// Public REST API
-app.MapGet("/api/temps", (MqttService mqtt) => mqtt.CurrentTemps)
-    .WithName("GetCurrentTemps")
-    .WithOpenApi();
 
-app.MapGet("/", () => "Flame Boss Monitor is running. Use /api/temps");
+// Public REST API
+app.MapGet("/", () => "Flame Boss Monitor is running. Use /api/status");
+app.MapGet("/heartbeat", () => "Alive");
+app.MapControllers();
 app.Run();

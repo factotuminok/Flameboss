@@ -5,18 +5,20 @@ namespace Flameboss;
 public class MqttService
 {
     private readonly IMqttClient _client;
-    private readonly IConfiguration _config;
-    public Temperatures CurrentTemps { get; private set; } = new();
+    private readonly Configuration _config;
+    private readonly ILogger<MqttService> _logger;
+    public FlameBossStatus CurrentTemps { get; private set; } = new();
 
-    public MqttService(IConfiguration config)
+    public MqttService(Configuration config, ILogger<MqttService> logger)
     {
         _config = config;
+        _logger = logger;
         var factory = new MQTTnet.MqttClientFactory();
         _client = factory.CreateMqttClient();
 
         var options = new MqttClientOptionsBuilder()
-            .WithTcpServer(Environment.GetEnvironmentVariable("MQTTBROKER") ?? "localhost")
-            .WithCredentials(Environment.GetEnvironmentVariable("MQTTUSERNAME"), Environment.GetEnvironmentVariable("MQTTPASSWORD"))
+            .WithTcpServer(config.MqttBroker ?? "localhost")
+            .WithCredentials(config.MqttUsername, config.MqttPassword)
             .WithClientId("FlameBossMonitor")
             .WithCleanSession()
             .Build();
@@ -25,7 +27,7 @@ public class MqttService
         PublishHomeAssistantDiscovery();
     }
 
-    public async Task UpdateAndPublish(Temperatures temps)
+    public async Task UpdateAndPublish(FlameBossStatus temps)
     {
         CurrentTemps = temps;
 
@@ -33,8 +35,8 @@ public class MqttService
         {
             ("pit", temps.Pit),
             ("meat1", temps.Meat1),
-            ("blower", temps.Blower),
-            ("set_temp", temps.SetTemp),
+            ("blower", temps.BlowerPercentage),
+            ("set_temp", temps.SetTemperature),
         };
 
         foreach (var (name, value) in topics)
@@ -55,8 +57,8 @@ public class MqttService
     {
         var device = new
         {
-            identifiers = new[] { Environment.GetEnvironmentVariable("DEVICENAME") },
-            name = Environment.GetEnvironmentVariable("FRIENDLYNAME"),
+            identifiers = new[] { _config.DeviceName },
+            name = _config.FriendlyName,
             manufacturer = "Flame Boss",
             model = "WiFi Controller"
         };
@@ -74,7 +76,7 @@ public class MqttService
             string configTopic = $"homeassistant/sensor/flameboss_{id}/config";
             var configPayload = new
             {
-                name = $"{Environment.GetEnvironmentVariable("FRIENDLYNAME")} {name}",
+                name = $"{_config.FriendlyName} {name}",
                 unique_id = $"flameboss_{id}",
                 state_topic = $"homeassistant/sensor/flameboss_{id}/state",
                 unit_of_measurement = unit,
