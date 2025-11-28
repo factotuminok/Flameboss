@@ -63,11 +63,12 @@ public class MqttService
             model = "WiFi Controller"
         };
 
+        //https://www.home-assistant.io/integrations/sensor/#device-class
         var sensors = new[]
         {
             ("pit", "Pit Temperature", "°F", "temperature"),
             ("meat1", "Meat 1 Probe", "°F", "temperature"),
-            ("blower", "Blower", "%", "percentage"),
+            ("blower", "Blower", "%", ""),
             ("set_temp", "Set Temp", "°F", "temperature")
         };
 
