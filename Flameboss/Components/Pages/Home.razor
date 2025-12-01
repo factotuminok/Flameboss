@@ -20,6 +20,7 @@
         <MudText>Set Temperature:</MudText>
         <MudText>@_currentStatus.SetTemperature</MudText>
     </MudItem>
+    <MudButton OnClick="Callback">Toggle Cook</MudButton>
 </MudGrid>
 <MudPaper Class="doc-section-component-container">
     <MudTimeSeriesChart ChartSeries="@_tempSeries"
@@ -29,7 +30,7 @@
                         ChartOptions="@_tempOptions"
                         AxisChartOptions="@_axisChartOptions"
                         CanHideSeries="true"
-                        TimeLabelSpacing="TimeSpan.FromMinutes(10)"
+                        TimeLabelSpacing="TimeSpan.FromMinutes(5)"
                         TimeLabelSpacingRounding="_roundedLabelSpacing"
                         TimeLabelSpacingRoundingPadSeries="_roundedLabelSpacingPadSeries"
                         DataMarkerTooltipTimeLabelFormat="HH:mm:ss"/>
@@ -42,7 +43,7 @@
                         ChartOptions="@_blowerOptions"
                         AxisChartOptions="@_axisChartOptions"
                         CanHideSeries="true"
-                        TimeLabelSpacing="TimeSpan.FromMinutes(10)"
+                        TimeLabelSpacing="TimeSpan.FromMinutes(5)"
                         TimeLabelSpacingRounding="_roundedLabelSpacing"
                         TimeLabelSpacingRoundingPadSeries="_roundedLabelSpacingPadSeries"
                         DataMarkerTooltipTimeLabelFormat="HH:mm:ss"/>
@@ -173,6 +174,11 @@
 
             StateHasChanged();
         }
+    }
+
+    private void Callback(MouseEventArgs obj)
+    {
+        throw new NotImplementedException();
     }
 
 }
