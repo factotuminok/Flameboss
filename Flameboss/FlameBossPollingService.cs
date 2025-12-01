@@ -24,7 +24,7 @@ public class FlameBossPollingService: BackgroundService
     {
         while (!stoppingToken.IsCancellationRequested)
         {
-            if (_flameBossService.Cooking)
+            if (FlamebossData.Cooking)
             {
                 try
                 {
@@ -39,7 +39,7 @@ public class FlameBossPollingService: BackgroundService
                     _logger.LogError(ex, "Failed to fetch or parse Flame Boss data");
                 }
             }
-            _flameBossService.LastPoll = DateTime.Now;
+            FlamebossData.LastPoll = DateTime.Now;
             await Task.Delay(millisecondsDelay, stoppingToken); 
         }
     }

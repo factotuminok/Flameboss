@@ -1,4 +1,6 @@
 using Flameboss;
+using Flameboss.Components;
+using MudBlazor.Services;
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
@@ -16,6 +18,10 @@ var config = new Configuration
     FriendlyName = Environment.GetEnvironmentVariable("FRIENDLYNAME"),
     PollSeconds = Environment.GetEnvironmentVariable("POLLSECONDS"),
 };
+builder.Services.AddRazorComponents()
+    .AddInteractiveServerComponents();
+
+builder.Services.AddMudServices();
 
 // Add services
 builder.Services.AddSingleton(config);
@@ -33,11 +39,21 @@ if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
 }
-
+await using var scope = app.Services.CreateAsyncScope();
 app.UseHttpsRedirection();
 
 // Public REST API
-app.MapGet("/", () => "Flame Boss Monitor is running. Use /api/status");
+app.MapGet("/api", () => "Flame Boss Monitor is running. Use /api/status");
 app.MapGet("/heartbeat", () => "Alive");
 app.MapControllers();
+
+app.UseAntiforgery();
+app.MapStaticAssets();
+app.MapRazorComponents<App>()
+    .AddInteractiveServerRenderMode();
+
+var logger = app.Services.GetRequiredService<ILoggerFactory>()
+    .CreateLogger<Program>();
+logger.LogInformation("Flameboss application starting.");
+
 app.Run();

@@ -10,6 +10,8 @@
     <ItemGroup>
         <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.0"/>
         <PackageReference Include="MQTTnet" Version="5.0.1.1416" />
+        <PackageReference Include="MudBlazor" Version="8.15.0" />
+        <PackageReference Include="MudBlazor.Extensions" Version="8.15.0" />
         <PackageReference Include="System.Text.RegularExpressions" Version="4.3.1" />
     </ItemGroup>
 
@@ -19,4 +21,8 @@
       </Content>
     </ItemGroup>
 
+    <ItemGroup>
+      <Folder Include="Components\Objects\" />
+    </ItemGroup>
+    
 </Project>

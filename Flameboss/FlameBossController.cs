@@ -24,11 +24,11 @@ public class FlameBossController : ControllerBase
     [HttpPost("set-temperature")]
     public async Task<IActionResult> SetTemperature([FromQuery] int temperature)
     {
-        if (_flameBossService.Cooking == false)
+        if (FlamebossData.Cooking == false)
             return BadRequest($"Flame Boss not cooking");
         if (temperature < 100 || temperature > 400)
             return BadRequest("Temperature must be between 100°F and 400°F");
-        if(temperature.ToString() == _flameBossService.CurrentStatus.SetTemperature)
+        if(temperature == FlamebossData.CurrentStatus.SetTemperature)
             return Ok($"Temperature already set to {temperature}");
 
         try
@@ -68,9 +68,9 @@ public class FlameBossController : ControllerBase
     {
         try
         {
-            if (_flameBossService.Cooking && _flameBossService.CurrentStatus != null)
+            if (FlamebossData.Cooking && FlamebossData.CurrentStatus != null)
             {
-                var temps = _flameBossService.CurrentStatus;
+                var temps = FlamebossData.CurrentStatus;
                 return Ok(temps);
             }
             else
@@ -92,16 +92,15 @@ public class FlameBossController : ControllerBase
     [HttpGet("toggle-cook")]
     public async Task<IActionResult> ToggleCook()
     {
-        if (_flameBossService.Cooking)
+        if (FlamebossData.Cooking)
         {
-            _flameBossService.Cooking = false;
+            _flameBossService.StopCook();
             _logger.LogInformation($"Cook stopped");
             return Ok($"Cook stopped");
         }
         else
         {
-            _flameBossService.Cooking = true;
-            await _flameBossService.GetStatus();
+            await _flameBossService.StartCook();
             _logger.LogInformation($"Cook started");
             return Ok($"Cook started");
         }
@@ -123,9 +122,9 @@ public class FlameBossController : ControllerBase
     public async Task<IActionResult> Alive()
     {
         int pollSeconds = Convert.ToInt32(_config.PollSeconds) * 5;
-        if (DateTime.Now.AddSeconds(-pollSeconds) <= _flameBossService.LastPoll)
-            if (_flameBossService.Cooking)
-                if (DateTime.Now.AddSeconds(-pollSeconds) <= _flameBossService.LastCheck)
+        if (DateTime.Now.AddSeconds(-pollSeconds) <= FlamebossData.LastPoll)
+            if (FlamebossData.Cooking)
+                if (DateTime.Now.AddSeconds(-pollSeconds) <= FlamebossData.LastSuccessfulCheck)
                     return Ok("Heartbeat");
                 else
                     return BadRequest("No Heartbeat");

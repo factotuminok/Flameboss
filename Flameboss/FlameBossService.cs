@@ -6,16 +6,10 @@ public class FlameBossService
     
     private readonly HttpClient _httpClient;
     private readonly string _flameBossUrl;
-    private readonly Configuration _config;
     private readonly ILogger<FlameBossService> _logger;
-    public FlameBossStatus? CurrentStatus { get; set; }
-    public bool Cooking { get; set; }
-    public DateTime LastCheck { get; set; }
-    public DateTime LastPoll { get; set; }
     
     public FlameBossService(IHttpClientFactory httpClientFactory, Configuration config, ILogger<FlameBossService> logger)
     {
-        _config = config;
         _httpClient = httpClientFactory.CreateClient();
         _flameBossUrl = config.FlameBossUrl; // Default IP
         _logger = logger;
@@ -25,44 +19,45 @@ public class FlameBossService
     {
         string statushtml = await _httpClient.GetStringAsync(_flameBossUrl);
         string sethtml = await _httpClient.GetStringAsync(_flameBossUrl + "set");
-        CurrentStatus = new FlameBossStatus
+        FlamebossData.CurrentStatus = new FlameBossStatus
         {
             Pit = ExtractNumber(statushtml, @"<td>\s*Pit\s*</td>\s*<td[^>]*>\s*(\d+)"),
             Meat1 = ExtractNumber(statushtml, @"<td>\s*Meat\s+1\s*</td>\s*<td[^>]*>\s*(\d+|---)"),
             SetTemperature = ExtractSetTemperature(sethtml),
             BlowerPercentage = ExtractNumber(statushtml, @"<td>\s*Blower\s*</td>\s*<td[^>]*>\s*(\d+|---)")
         };
-        LastCheck = DateTime.Now;
-        return CurrentStatus;
+        FlamebossData.LastSuccessfulCheck = DateTime.Now;
+        if (FlamebossData.Cooking)
+        {
+            FlamebossData.CookStatusList = new List<FlameBossStatus>();
+            FlamebossData.CookStatusList.Add(FlamebossData.CurrentStatus);
+        }
+
+        return FlamebossData.CurrentStatus;
 
     }
     
-    public string? ExtractSetTemperature(string htmlContent)
+    private int ExtractSetTemperature(string htmlContent)
     {
-        string? result;
         if (string.IsNullOrWhiteSpace(htmlContent)) 
-            result = null;
+            return 0;
         
         string pattern = @"name=[""']s[""']\s+[^>]*value=[""'](\d+)[""']";
         var match = Regex.Match(htmlContent, pattern, 
             RegexOptions.IgnoreCase);
         
-        result = match.Success && int.TryParse(match.Groups[1].Value, out int temp) ? temp.ToString() : null;
-        
-        return result;
+        return match.Success && int.TryParse(match.Groups[1].Value, out int temp) ? temp : 0;
     }
     
-    public string? ExtractNumber(string html, string pattern)
+    private int ExtractNumber(string html, string pattern)
     {
-        string? result;
         var match = Regex.Match(html, pattern, RegexOptions.IgnoreCase);
         if (!match.Success) 
-            result = null;
+            return 0;
 
         string val = match.Groups[1].Value.Trim();
-        result = val == "---" ? null : int.TryParse(val, out int n) ? n.ToString() : null;
-        
-        return result;
+        return val == "---" ? 0 : int.TryParse(val, out int n) ? n : 0;
+
     }
     
     public async Task<SetTemperatureResponse> SetTemperature(int temperature)
@@ -90,5 +85,21 @@ public class FlameBossService
             throw new Exception($"Failed to set temperature. HTTP {response.StatusCode}");
         }
 
+    }
+
+   
+    public async Task<bool> StartCook()
+    {
+        FlamebossData.CookStatusList = new List<FlameBossStatus>();
+        FlamebossData.Cooking =  true;
+        await GetStatus();
+        return FlamebossData.Cooking;
+    }
+    
+    public bool StopCook()
+    {
+        FlamebossData.CookStatusList.Clear();
+        FlamebossData.Cooking =  false;
+        return FlamebossData.Cooking;
     }
 }

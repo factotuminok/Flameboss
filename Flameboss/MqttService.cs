@@ -41,11 +41,11 @@ public class MqttService
 
         foreach (var (name, value) in topics)
         {
-            if (value != "-1" && value != "---")
+            if (value != -1)
             {
                 var applicationMessage = new MqttApplicationMessageBuilder()
                     .WithTopic($"homeassistant/sensor/flameboss_{name}/state")
-                    .WithPayload(value)
+                    .WithPayload(value.ToString())
                     .Build();
                 await _client.PublishAsync(applicationMessage);
             }
