@@ -24,12 +24,12 @@ public class FlameBossService
             Pit = ExtractNumber(statushtml, @"<td>\s*Pit\s*</td>\s*<td[^>]*>\s*(\d+)"),
             Meat1 = ExtractNumber(statushtml, @"<td>\s*Meat\s+1\s*</td>\s*<td[^>]*>\s*(\d+|---)"),
             SetTemperature = ExtractSetTemperature(sethtml),
-            BlowerPercentage = ExtractNumber(statushtml, @"<td>\s*Blower\s*</td>\s*<td[^>]*>\s*(\d+|---)")
+            BlowerPercentage = ExtractNumber(statushtml, @"<td>\s*Blower\s*</td>\s*<td[^>]*>\s*(\d+|---)"),
+            LastUpdate = DateTime.Now
         };
         FlamebossData.LastSuccessfulCheck = DateTime.Now;
         if (FlamebossData.Cooking)
         {
-            FlamebossData.CookStatusList = new List<FlameBossStatus>();
             FlamebossData.CookStatusList.Add(FlamebossData.CurrentStatus);
         }
 

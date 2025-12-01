@@ -5,6 +5,14 @@ public static class FlamebossData
 
     static FlamebossData()
     {
+        CurrentStatus = new FlameBossStatus()
+        {
+            BlowerPercentage = 0,
+            Pit = 0,
+            Meat1 = 0,
+            SetTemperature = 0,
+            LastUpdate = DateTime.Now
+        };
         CookStatusList = new List<FlameBossStatus>();
     }
 
@@ -16,52 +24,28 @@ public static class FlamebossData
     
     public static List<int> GetPitTemperatureList()
     {
-        if(FlamebossData.Cooking)
-            return FlamebossData.CookStatusList.Select(x => x.Pit).ToList();
-        else
-        {
-            return new List<int>{0};
-        }
+        return FlamebossData.CookStatusList.Select(x => x.Pit).ToList();
     }
     
     public static List<int> GetMeatTemperatureList()
     {
-        if(FlamebossData.Cooking)
-            return FlamebossData.CookStatusList.Select(x => x.Meat1).ToList();
-        else
-        {
-            return new List<int>{0};
-        }
+        return FlamebossData.CookStatusList.Select(x => x.Meat1).ToList();
     }
     
     public static List<int> GetSetTemperatureList()
     {
-        if(FlamebossData.Cooking)
-            return CookStatusList.Select(x => x.SetTemperature).ToList();
-        else
-        {
-            return new List<int>{0};
-        }
+        return CookStatusList.Select(x => x.SetTemperature).ToList();
     }
     
     public static List<int> GetBlowerSpeedList()
     {
-        if(Cooking)
-            return CookStatusList.Select(x => x.BlowerPercentage).ToList();
-        else
-        {
-            return new List<int>{0};
-        }
+        return CookStatusList.Select(x => x.BlowerPercentage).ToList();
+        
     }
 
     public static List<DateTime> GetLastUpdateList()
     {
-        if(Cooking)
-            return CookStatusList.Select(x => x.LastUpdate).ToList();
-        else
-        {
-            return new List<DateTime>{ DateTime.Now};
-        }
+        return CookStatusList.Select(x => x.LastUpdate).ToList();
     }
 
 }
