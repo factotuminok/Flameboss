@@ -1,8 +1,5 @@
 ﻿@page "/"
 @rendermode InteractiveServer
-@using MudBlazor.Extensions
-@using MudBlazor.Extensions.Services
-@using Nextended.Core.Extensions
 
 <PageTitle>Flameboss 400 Controller</PageTitle>
 <h1>Flameboss 400 controller</h1>
@@ -21,39 +18,66 @@
     </MudItem>
 </MudGrid>
 <MudPaper Class="doc-section-component-container">
-    <MudTimeSeriesChart ChartSeries="@_series"
+    <MudTimeSeriesChart ChartSeries="@_tempSeries"
                         @bind-SelectedIndex="_index"
                         Width="@_width"
                         Height="@_height"
-                        ChartOptions="@_options"
+                        ChartOptions="@_tempOptions"
                         AxisChartOptions="@_axisChartOptions"
                         CanHideSeries="true"
-                        TimeLabelSpacing="TimeSpan.FromMinutes(5)"
+                        TimeLabelSpacing="TimeSpan.FromMinutes(1)"
                         TimeLabelSpacingRounding="_roundedLabelSpacing"
                         TimeLabelSpacingRoundingPadSeries="_roundedLabelSpacingPadSeries"
-                        DataMarkerTooltipTimeLabelFormat="yyyy MMM dd HH:mm:ss" />
+                        DataMarkerTooltipTimeLabelFormat="HH:mm:ss" />
+</MudPaper>
+<MudPaper Class="doc-section-component-container">
+    <MudTimeSeriesChart ChartSeries="@_blowerSeries"
+                        @bind-SelectedIndex="_index"
+                        Width="@_width"
+                        Height="@_height"
+                        ChartOptions="@_blowerOptions"
+                        AxisChartOptions="@_axisChartOptions"
+                        CanHideSeries="true"
+                        TimeLabelSpacing="TimeSpan.FromMinutes(1)"
+                        TimeLabelSpacingRounding="_roundedLabelSpacing"
+                        TimeLabelSpacingRoundingPadSeries="_roundedLabelSpacingPadSeries"
+                        DataMarkerTooltipTimeLabelFormat="HH:mm:ss" />
 </MudPaper>
 @code{
-    
-private int _index = -1; //default value cannot be 0 -> first selectedindex is 0.
-    private ChartOptions _options = new ChartOptions
+    private int _index = -1; 
+    private ChartOptions _tempOptions = new ChartOptions
         {
             YAxisLines = false,
-            YAxisTicks = 400,
-            MaxNumYAxisTicks = 20,
+            YAxisTicks = 50,
+            MaxNumYAxisTicks = 8,
             YAxisRequireZeroPoint = true,
             XAxisLines = false,
             LineStrokeWidth = 1,
         };
 
-    private AxisChartOptions _axisChartOptions = new() { };
+    private ChartOptions _blowerOptions = new ChartOptions
+    {
+        YAxisLines = false,
+        YAxisTicks = 10,
+        MaxNumYAxisTicks = 10,
+        YAxisRequireZeroPoint = true,
+        XAxisLines = false,
+        LineStrokeWidth = 1,
+    };
+    
+    private AxisChartOptions _axisChartOptions = new()
+    {
+        XAxisLabelRotation = 90
+    };
 
-    private TimeSeriesChartSeries _chart1 = new();
-    private TimeSeriesChartSeries _chart2 = new();
-    private TimeSeriesChartSeries _chart3 = new();
-
-    private List<TimeSeriesChartSeries> _series = new();
-
+    private TimeSeriesChartSeries _pitData = new();
+    private TimeSeriesChartSeries _meatData = new();
+    private TimeSeriesChartSeries _setData = new();
+    private TimeSeriesChartSeries _blowerData = new();
+    
+    private List<TimeSeriesChartSeries> _tempSeries = new();
+    private List<TimeSeriesChartSeries> _blowerSeries = new();
+    
     private bool _roundedLabelSpacing = false;
     private bool _roundedLabelSpacingPadSeries = false;
 
@@ -66,10 +90,10 @@ private int _index = -1; //default value cannot be 0 -> first selectedindex is 0
         
         FlamebossData.CurrentStatus = new FlameBossStatus()
         {
-            BlowerPercentage = 2,
-            Pit = 200,
-            Meat1 = 152,
-            SetTemperature = 250,
+            BlowerPercentage = 0,
+            Pit = 0,
+            Meat1 = 0,
+            SetTemperature = 0,
             LastUpdate = DateTime.Now
         };
 
@@ -77,7 +101,7 @@ private int _index = -1; //default value cannot be 0 -> first selectedindex is 0
         List<TimeSeriesChartSeries.TimeValue> pitData =  FlamebossData.GetLastUpdateList()
             .Zip(FlamebossData.GetPitTemperatureList(), (dateTime, value) => new TimeSeriesChartSeries.TimeValue
             (dateTime,value)).ToList();
-        _chart1 = new TimeSeriesChartSeries
+        _pitData = new TimeSeriesChartSeries
             {
                 Index = 0,
                 Name = "Pit",
@@ -92,7 +116,7 @@ private int _index = -1; //default value cannot be 0 -> first selectedindex is 0
         List<TimeSeriesChartSeries.TimeValue> meatData =  FlamebossData.GetLastUpdateList()
             .Zip(FlamebossData.GetMeatTemperatureList(), (dateTime, value) => new TimeSeriesChartSeries.TimeValue
                 (dateTime,value)).ToList();
-        _chart2 = new TimeSeriesChartSeries
+        _meatData = new TimeSeriesChartSeries
             {
                 Index = 1,
                 Name = "Meat",
@@ -107,7 +131,7 @@ private int _index = -1; //default value cannot be 0 -> first selectedindex is 0
         List<TimeSeriesChartSeries.TimeValue> setData =  FlamebossData.GetLastUpdateList()
             .Zip(FlamebossData.GetSetTemperatureList(), (dateTime, value) => new TimeSeriesChartSeries.TimeValue
                 (dateTime,value)).ToList();
-        _chart3 = new TimeSeriesChartSeries
+        _setData = new TimeSeriesChartSeries
             {
                 Index = 2,
                 Name = "Set",
@@ -119,9 +143,26 @@ private int _index = -1; //default value cannot be 0 -> first selectedindex is 0
                 ShowDataMarkers = true
             };
 
-        _series.Add(_chart1);
-        _series.Add(_chart2);
-        _series.Add(_chart3);
+        _tempSeries.Add(_pitData);
+        _tempSeries.Add(_meatData);
+        _tempSeries.Add(_setData);
+        
+        List<TimeSeriesChartSeries.TimeValue> blowerData =  FlamebossData.GetLastUpdateList()
+            .Zip(FlamebossData.GetBlowerSpeedList(), (dateTime, value) => new TimeSeriesChartSeries.TimeValue
+                (dateTime,value)).ToList();
+        _blowerData = new TimeSeriesChartSeries
+        {
+            Index = 0,
+            Name = "Blower",
+            Data = blowerData,
+            IsVisible = true,
+            LineDisplayType = LineDisplayType.Area,
+            DataMarkerTooltipTitleFormat = "{{X_VALUE}}",
+            DataMarkerTooltipSubtitleFormat = "{{Y_VALUE}}",
+            ShowDataMarkers = true
+        };
+        
+        _blowerSeries.Add(_blowerData);
 
         StateHasChanged();
     }
