@@ -93,6 +93,7 @@ public class FlameBossService
         FlamebossData.CookStatusList = new List<FlameBossStatus>();
         FlamebossData.Cooking =  true;
         await GetStatus();
+        _logger.LogInformation("Cooking started");
         return FlamebossData.Cooking;
     }
     
@@ -100,6 +101,7 @@ public class FlameBossService
     {
         FlamebossData.CookStatusList.Clear();
         FlamebossData.Cooking =  false;
+        _logger.LogInformation("Cooking stopped");
         return FlamebossData.Cooking;
     }
 }

@@ -1,4 +1,6 @@
 ﻿@page "/"
+@using System.Net
+@inject HttpClient Http
 @rendermode InteractiveServer
 
 <PageTitle>Flameboss 400 Controller</PageTitle>
@@ -20,7 +22,7 @@
         <MudText>Set Temperature:</MudText>
         <MudText>@_currentStatus.SetTemperature</MudText>
     </MudItem>
-    <MudButton OnClick="Callback">Toggle Cook</MudButton>
+    <MudButton OnClick="ToggleCook_Callback">Toggle Cook</MudButton>
 </MudGrid>
 <MudPaper Class="doc-section-component-container">
     <MudTimeSeriesChart ChartSeries="@_tempSeries"
@@ -176,9 +178,19 @@
         }
     }
 
-    private void Callback(MouseEventArgs obj)
+    private async void ToggleCook_Callback(MouseEventArgs obj)
     {
-        throw new NotImplementedException();
+        string? result;
+        try
+        {
+            // GET request
+            var response = await Http.GetFromJsonAsync<System.String>("http://localhost:5163/api/toggle-cook");
+            result = response?.ToString() ?? "No data";
+        }
+        catch (Exception ex)
+        {
+            result = $"Error: {ex.Message}";
+        }
     }
 
 }
