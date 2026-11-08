@@ -3,6 +3,7 @@
 @inject ILogger<Home> Logger
 @inject IDialogService DialogService
 @inject ISnackbar Snackbar
+@inject CookReadingStore CookReadings
 @rendermode InteractiveServer
 
 <PageTitle>Flameboss 400 Controller</PageTitle>
@@ -77,6 +78,47 @@
                                 DataMarkerTooltipTimeLabelFormat="HH:mm:ss"/>
         </MudPaper>
     </MudItem>
+    <MudItem xs="12">
+        <MudPaper Class="pa-2" Elevation="1">
+            <MudText Typo="Typo.h6" Class="px-2 pt-1">Cook history</MudText>
+            @if (!CookReadings.IsEnabled)
+            {
+                <MudText Class="pa-2" Typo="Typo.body2">Cook history needs MongoDB (MONGODBURI is not set).</MudText>
+            }
+            else if (_historyError is not null)
+            {
+                <MudAlert Severity="Severity.Error" Dense="true" Class="ma-2">Couldn't load cook history: @_historyError</MudAlert>
+            }
+            else
+            {
+                @* Stacks into labelled cards below the sm breakpoint. *@
+                <MudTable Items="@_cooks" Dense="true" Hover="true" Elevation="0" Breakpoint="Breakpoint.Sm"
+                          Loading="@(_cooks is null)">
+                    <HeaderContent>
+                        <MudTh>Cook date</MudTh>
+                        <MudTh>Total cook time</MudTh>
+                        <MudTh>Highest pit</MudTh>
+                        <MudTh>Highest meat</MudTh>
+                    </HeaderContent>
+                    <RowTemplate>
+                        <MudTd DataLabel="Cook date">@context.Start.ToLocalTime().ToString("ddd MMM d, yyyy h:mm tt")</MudTd>
+                        <MudTd DataLabel="Total cook time">
+                            @FormatDuration(context.Duration)
+                            @if (context.CookId == FlamebossData.CookId)
+                            {
+                                <MudChip T="string" Size="Size.Small" Color="Color.Warning" Class="ml-2">In progress</MudChip>
+                            }
+                        </MudTd>
+                        <MudTd DataLabel="Highest pit">@FormatTemperature(context.MaxPit)</MudTd>
+                        <MudTd DataLabel="Highest meat">@FormatTemperature(context.MaxMeat)</MudTd>
+                    </RowTemplate>
+                    <NoRecordsContent>
+                        <MudText Typo="Typo.body2">No cooks logged yet.</MudText>
+                    </NoRecordsContent>
+                </MudTable>
+            }
+        </MudPaper>
+    </MudItem>
 </MudGrid>
 
 @code{
@@ -126,13 +168,48 @@
     // Scales with the viewport height, within bounds that stay readable on phones and desktops.
     private const string ChartHeight = "clamp(220px, 40vh, 380px)";
 
+    // Cook history from MongoDB: loaded on open, when a cook starts/stops, and every 60 s (12 ticks) meanwhile.
+    private List<CookSummary>? _cooks;
+    private string? _historyError;
+    private string? _historyCookId;
+    private int _ticksSinceHistory;
+    private const int HistoryRefreshTicks = 12;
+
+    private async Task LoadHistoryAsync()
+    {
+        _historyCookId = FlamebossData.CookId;
+        _ticksSinceHistory = 0;
+        if (!CookReadings.IsEnabled)
+            return;
+        try
+        {
+            _cooks = await CookReadings.GetCookSummariesAsync(cts.Token);
+            _historyError = null;
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            Logger.LogError(ex, "Loading cook history failed");
+            _historyError = ex.Message;
+        }
+    }
+
+    private static string FormatDuration(TimeSpan d) =>
+        d.TotalHours >= 1 ? $"{(int)d.TotalHours}h {d.Minutes}m" : $"{d.Minutes}m {d.Seconds}s";
+
+    // 0 means the probe was unplugged (---) for the whole cook.
+    private static string FormatTemperature(int f) => f > 0 ? $"{f} °F" : "—";
+
     protected override async void OnInitialized()
     {
         _currentStatus = FlamebossData.CurrentStatus;
+        await LoadHistoryAsync();
+        StateHasChanged();
         periodicTimer = new PeriodicTimer(TimeSpan.FromSeconds(5));
 
         while (await periodicTimer.WaitForNextTickAsync(cts.Token))
         {
+            if (FlamebossData.CookId != _historyCookId || ++_ticksSinceHistory >= HistoryRefreshTicks)
+                await LoadHistoryAsync();
             _tempSeries.Clear();
             _blowerSeries.Clear();
             _currentStatus = FlamebossData.CurrentStatus;

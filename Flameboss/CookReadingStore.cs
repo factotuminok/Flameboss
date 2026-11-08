@@ -17,6 +17,18 @@ public class CookReading
     [BsonElement("blowerPercentage")] public int BlowerPercentage { get; init; }
 }
 
+/// <summary>One cook's span and peaks, aggregated from its readings.</summary>
+public class CookSummary
+{
+    public required string CookId { get; init; }
+    public DateTime Start { get; init; }
+    public DateTime End { get; init; }
+    public int MaxPit { get; init; }
+    public int MaxMeat { get; init; }
+    public int Readings { get; init; }
+    public TimeSpan Duration => End - Start;
+}
+
 /// <summary>
 /// Logs cook readings to MongoDB. <see cref="Add"/> only queues, so a slow or down Mongo never stalls polling
 /// or MQTT; the background loop writes in order and retries until Mongo is back. Disabled (warned once at
@@ -68,6 +80,29 @@ public class CookReadingStore : BackgroundService
             SetTemperature = status.SetTemperature,
             BlowerPercentage = status.BlowerPercentage,
         });
+    }
+
+    /// <summary>False when MONGODBURI is unset, so there is no cook history to show.</summary>
+    public bool IsEnabled => _collection is not null;
+
+    /// <summary>Every logged cook, newest first. Start/End are UTC (first and last reading).</summary>
+    public async Task<List<CookSummary>> GetCookSummariesAsync(CancellationToken cancellationToken = default)
+    {
+        if (_collection is null)
+            return [];
+
+        return await _collection.Aggregate()
+            .Group(r => r.CookId, g => new CookSummary
+            {
+                CookId = g.Key,
+                Start = g.Min(r => r.Timestamp),
+                End = g.Max(r => r.Timestamp),
+                MaxPit = g.Max(r => r.Pit),
+                MaxMeat = g.Max(r => r.Meat1),
+                Readings = g.Count(),
+            })
+            .SortByDescending(s => s.Start)
+            .ToListAsync(cancellationToken);
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)

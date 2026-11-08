@@ -5,7 +5,7 @@ A self-hosted replacement for the Flame Boss phone app, for the
 
 It talks directly to the controller's built-in web page on your LAN (no Flame Boss cloud account or app needed) and gives you:
 
-- **Web dashboard** (Blazor + MudBlazor): live pit, meat, set-point, and blower readings, time-series charts for the current cook, and a **Set Temperature** button that opens a dialog accepting 150–400 °F and sends it to the controller.
+- **Web dashboard** (Blazor + MudBlazor): live pit, meat, set-point, and blower readings, time-series charts for the current cook, a **Set Temperature** button that opens a dialog accepting 150–400 °F and sends it to the controller, and a **Cook history** table of past cooks from MongoDB.
 - **REST API**: read status, set the pit target temperature, start/stop a cook, health checks.
 - **Home Assistant via MQTT**: publishes sensor state and auto-discovery config so the controller shows up as a device in Home Assistant.
 - **MongoDB cook log**: every poll during a cook is stored with a per-cook ID and timestamp, so past cooks can be reviewed later.
@@ -74,6 +74,7 @@ Settings are read through ASP.NET Core configuration: environment variables, or 
 | `UNREACHABLETIMEOUTSECONDS` | `180` | Stop the current cook after the controller has been unreachable this long, at least 1. |
 | `MONGODBURI` | (none) | MongoDB connection string for the cook log, e.g. `mongodb://user:pass@host:27017/flameboss?authSource=flameboss`. **Secret** (contains the password). Unset: readings aren't logged (warned at startup). |
 | `MONGODBDATABASE` | `flameboss` | Database for the cook log. |
+| `TZ` | container default (UTC) | Time zone for dashboard times (charts, cook history), e.g. `America/Chicago`. MongoDB timestamps are always UTC. |
 
 The app exits at startup if `FLAMEBOSSURL` is missing, if `POLLSECONDS` is below 1, or if it can't connect to the MQTT broker.
 
@@ -121,7 +122,7 @@ The dashboard is at <http://localhost:5163> (container port 8080).
 
 The homelab k3s cluster deploys it with Argo CD from the private `factotuminok/homelab` repo (`apps/flameboss`), at `https://flameboss.lewisfamily4.com`:
 
-- Non-secret settings (`FLAMEBOSSURL`, `MQTTBROKER`, `DEVICENAME`, `FRIENDLYNAME`, `POLLSECONDS`, `UNREACHABLETIMEOUTSECONDS`, `MONGODBDATABASE`) are plain `env` values in the Deployment.
+- Non-secret settings (`FLAMEBOSSURL`, `MQTTBROKER`, `DEVICENAME`, `FRIENDLYNAME`, `POLLSECONDS`, `UNREACHABLETIMEOUTSECONDS`, `MONGODBDATABASE`, `TZ`) are plain `env` values in the Deployment.
 - `MQTTUSERNAME` and `MQTTPASSWORD` come from the existing Kubernetes Secret `mosquitto` (keys `MQTT_USER`, `MQTT_PASSWORD`). `MONGODBURI` is built from Secret `flameboss-mongo` (keys `MONGO_USER`, `MONGO_PASS`), a Mongo user with `readWrite` on the `flameboss` database only. The manifests only reference these Secrets.
 - The broker is the in-cluster `mosquitto` Service.
 - Run one replica only: cook state is kept in memory.
@@ -186,6 +187,8 @@ On every poll during a cook, one document is inserted into the `readings` collec
 - `cookId` is new for every cook; `timestamp` is the UTC time of the reading. The collection has an index on `{cookId, timestamp}` (created on the first write).
 - Only successful reads are logged. A poll where the controller can't be reached, returns an error, or serves a page without the Pit, Meat 1, Blower rows or the set-temperature field is a failed attempt: nothing is written, and it counts toward the `UNREACHABLETIMEOUTSECONDS` auto-stop. A probe showing `---` is a successful read and is logged as `0`.
 - Writes are queued in memory and written in the background, so a slow or unavailable MongoDB never delays polling, MQTT, or the dashboard. While MongoDB is down, the app retries every 5 s and writes the backlog in order once it's back. Readings still queued are lost if the app restarts during an outage; the queue keeps the newest 10,000.
+
+The dashboard's **Cook history** table at the bottom of the page lists every cook in the log, newest first: cook date (first reading, in `TZ`), total cook time (first to last reading), and highest pit and meat temperature (`—` if the probe read `---` throughout). The running cook is marked **In progress**. The table reloads when the page opens, when a cook starts or stops, and every 60 s.
 
 List cooks with their reading counts and time range:
 
