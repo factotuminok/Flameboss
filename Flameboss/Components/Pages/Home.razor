@@ -1,6 +1,8 @@
 ﻿@page "/"
 @inject FlameBossService FlameBoss
 @inject ILogger<Home> Logger
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
 @rendermode InteractiveServer
 
 <PageTitle>Flameboss 400 Controller</PageTitle>
@@ -22,6 +24,7 @@
         <MudText>Set Temperature:</MudText>
         <MudText>@_currentStatus.SetTemperature</MudText>
     </MudItem>
+    <MudButton OnClick="SetTemperature_Callback">Set Temperature</MudButton>
     <MudButton OnClick="ToggleCook_Callback">Toggle Cook</MudButton>
 </MudGrid>
 <MudPaper Class="doc-section-component-container">
@@ -187,6 +190,39 @@
         catch (Exception ex)
         {
             Logger.LogError(ex, "Toggle cook failed");
+        }
+    }
+
+    private async Task SetTemperature_Callback(MouseEventArgs obj)
+    {
+        var initial = Math.Clamp(_currentStatus.SetTemperature == 0 ? 225 : _currentStatus.SetTemperature,
+            SetTemperatureDialog.MinTemperature, SetTemperatureDialog.MaxTemperature);
+        var parameters = new DialogParameters<SetTemperatureDialog> { { x => x.Temperature, initial } };
+        var dialog = await DialogService.ShowAsync<SetTemperatureDialog>("Set Temperature", parameters);
+        var result = await dialog.Result;
+        if (result is not { Canceled: false, Data: int temperature })
+            return;
+
+        try
+        {
+            var response = await FlameBoss.SetTemperature(temperature);
+            Snackbar.Add(response.Message, Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Set temperature to {Temperature} failed", temperature);
+            Snackbar.Add($"Failed to set temperature: {ex.Message}", Severity.Error);
+            return;
+        }
+
+        // Re-read the controller so the Set Temperature display reflects the change right away.
+        try
+        {
+            _currentStatus = await FlameBoss.GetStatus();
+        }
+        catch (Exception ex)
+        {
+            Logger.LogWarning(ex, "Status refresh after setting temperature failed");
         }
     }
 

@@ -1,0 +1,41 @@
+<MudDialog>
+    <DialogContent>
+        @* No Min/Max: MudNumericField would silently clamp, so out-of-range input is rejected instead. *@
+        <MudNumericField T="int?"
+                         @bind-Value="_value"
+                         Label="Set temperature (°F)"
+                         HelperText="@($"{MinTemperature}–{MaxTemperature} °F")"
+                         Error="@(!IsValid)"
+                         Immediate="true"
+                         AutoFocus="true"/>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">Cancel</MudButton>
+        <MudButton Color="Color.Primary" Variant="Variant.Filled" Disabled="@(!IsValid)" OnClick="Submit">Set</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    public const int MinTemperature = 150;
+    public const int MaxTemperature = 400;
+
+    [CascadingParameter] private IMudDialogInstance MudDialog { get; set; } = null!;
+
+    /// <summary>Initial value shown in the field.</summary>
+    [Parameter] public int Temperature { get; set; } = 225;
+
+    private int? _value;
+
+    protected override void OnInitialized() => _value = Temperature;
+
+    private bool IsValid => _value is >= MinTemperature and <= MaxTemperature;
+
+    /// <summary>Closes with the chosen temperature (int) as the dialog result.</summary>
+    private void Submit()
+    {
+        if (IsValid)
+            MudDialog.Close(DialogResult.Ok(_value!.Value));
+    }
+
+    private void Cancel() => MudDialog.Cancel();
+}

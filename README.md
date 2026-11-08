@@ -5,7 +5,7 @@ A self-hosted replacement for the Flame Boss phone app, for the
 
 It talks directly to the controller's built-in web page on your LAN (no Flame Boss cloud account or app needed) and gives you:
 
-- **Web dashboard** (Blazor + MudBlazor): live pit, meat, set-point, and blower readings, plus time-series charts for the current cook.
+- **Web dashboard** (Blazor + MudBlazor): live pit, meat, set-point, and blower readings, time-series charts for the current cook, and a **Set Temperature** button that opens a dialog accepting 150–400 °F and sends it to the controller.
 - **REST API**: read status, set the pit target temperature, start/stop a cook, health checks.
 - **Home Assistant via MQTT**: publishes sensor state and auto-discovery config so the controller shows up as a device in Home Assistant.
 
@@ -165,7 +165,7 @@ Discovery messages aren't retained. If Home Assistant or the broker restarts, re
 - Only **Meat 1** is read. The device page also shows Meat 2 and Meat 3, but they're ignored.
 - Fahrenheit only.
 - Cook history is kept in memory only. There's no persistence across restarts and no multi-instance support.
-- Setting the temperature requires an active cook.
+- Setting the temperature through the REST API requires an active cook (the dashboard button doesn't).
 - Data comes from scraping the controller's HTML, so a firmware change to that page would break parsing.
 
 ## Project layout
@@ -180,6 +180,7 @@ Flameboss/
   FlameBossController.cs      REST API
   MqttService.cs              MQTT connection, HA discovery, state publishing
   Components/Pages/Home.razor Dashboard and charts
+  Components/SetTemperatureDialog.razor  Set-temperature dialog (150–400 °F)
   output.html, set.html       Sample controller pages (parsing reference)
   Dockerfile
 compose.yaml                  Local container run; settings from shell or .env
