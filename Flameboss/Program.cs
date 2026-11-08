@@ -15,6 +15,8 @@ if (!config.FlameBossUrl.EndsWith('/'))
     config.FlameBossUrl += "/";
 if (config.PollSeconds < 1)
     throw new InvalidOperationException("POLLSECONDS must be at least 1");
+if (config.UnreachableTimeoutSeconds < 1)
+    throw new InvalidOperationException("UNREACHABLETIMEOUTSECONDS must be at least 1");
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
 

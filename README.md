@@ -55,6 +55,7 @@ Polling only happens while a cook is active. Start/stop a cook with the dashboar
 - Starting a cook clears history, assigns a new cook ID (a GUID), takes an immediate reading, then polls every `POLLSECONDS`.
 - Each poll's reading is appended to the in-memory history that feeds the charts, published to MQTT, and logged to MongoDB under the cook ID.
 - Stopping a cook clears the history and the cook ID.
+- If the controller can't be read for `UNREACHABLETIMEOUTSECONDS` (default 180 s, i.e. 3 minutes) during a cook, the cook is stopped automatically and a warning is logged. Each read times out after 10 s, so the stop can come up to ~10 s after the limit. The clock starts when a cook starts, so a cook started while the controller is off still gets the full time.
 - Cook state and the chart history live only in memory and are lost when the app restarts; the MongoDB log is kept.
 
 ## Configuration
@@ -70,6 +71,7 @@ Settings are read through ASP.NET Core configuration: environment variables, or 
 | `DEVICENAME` | `flameboss` | Home Assistant device identifier. |
 | `FRIENDLYNAME` | `Flame Boss` | Home Assistant device name and sensor name prefix. |
 | `POLLSECONDS` | `5` | Poll interval, at least 1. |
+| `UNREACHABLETIMEOUTSECONDS` | `180` | Stop the current cook after the controller has been unreachable this long, at least 1. |
 | `MONGODBURI` | (none) | MongoDB connection string for the cook log, e.g. `mongodb://user:pass@host:27017/flameboss?authSource=flameboss`. **Secret** (contains the password). Unset: readings aren't logged (warned at startup). |
 | `MONGODBDATABASE` | `flameboss` | Database for the cook log. |
 
@@ -119,7 +121,7 @@ The dashboard is at <http://localhost:5163> (container port 8080).
 
 The homelab k3s cluster deploys it with Argo CD from the private `factotuminok/homelab` repo (`apps/flameboss`), at `https://flameboss.lewisfamily4.com`:
 
-- Non-secret settings (`FLAMEBOSSURL`, `MQTTBROKER`, `DEVICENAME`, `FRIENDLYNAME`, `POLLSECONDS`, `MONGODBDATABASE`) are plain `env` values in the Deployment.
+- Non-secret settings (`FLAMEBOSSURL`, `MQTTBROKER`, `DEVICENAME`, `FRIENDLYNAME`, `POLLSECONDS`, `UNREACHABLETIMEOUTSECONDS`, `MONGODBDATABASE`) are plain `env` values in the Deployment.
 - `MQTTUSERNAME` and `MQTTPASSWORD` come from the existing Kubernetes Secret `mosquitto` (keys `MQTT_USER`, `MQTT_PASSWORD`). `MONGODBURI` is built from Secret `flameboss-mongo` (keys `MONGO_USER`, `MONGO_PASS`), a Mongo user with `readWrite` on the `flameboss` database only. The manifests only reference these Secrets.
 - The broker is the in-cluster `mosquitto` Service.
 - Run one replica only: cook state is kept in memory.
@@ -182,6 +184,7 @@ On every poll during a cook, one document is inserted into the `readings` collec
 ```
 
 - `cookId` is new for every cook; `timestamp` is the UTC time of the reading. The collection has an index on `{cookId, timestamp}` (created on the first write).
+- Only successful reads are logged. A poll where the controller can't be reached, returns an error, or serves a page without the Pit, Meat 1, Blower rows or the set-temperature field is a failed attempt: nothing is written, and it counts toward the `UNREACHABLETIMEOUTSECONDS` auto-stop. A probe showing `---` is a successful read and is logged as `0`.
 - Writes are queued in memory and written in the background, so a slow or unavailable MongoDB never delays polling, MQTT, or the dashboard. While MongoDB is down, the app retries every 5 s and writes the backlog in order once it's back. Readings still queued are lost if the app restarts during an outage; the queue keeps the newest 10,000.
 
 List cooks with their reading counts and time range:

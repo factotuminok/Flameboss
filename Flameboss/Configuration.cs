@@ -2,8 +2,8 @@ namespace Flameboss;
 
 /// <summary>
 /// Bound from IConfiguration at startup; keys match property names case-insensitively,
-/// so the env vars FLAMEBOSSURL, MQTTBROKER, MQTTUSERNAME, MQTTPASSWORD, DEVICENAME,
-/// FRIENDLYNAME, POLLSECONDS, MONGODBURI and MONGODBDATABASE (or user-secrets with the same names) set them.
+/// so the env vars FLAMEBOSSURL, MQTTBROKER, MQTTUSERNAME, MQTTPASSWORD, DEVICENAME, FRIENDLYNAME, POLLSECONDS,
+/// UNREACHABLETIMEOUTSECONDS, MONGODBURI and MONGODBDATABASE (or user-secrets with the same names) set them.
 /// </summary>
 public record Configuration
 {
@@ -14,6 +14,8 @@ public record Configuration
     public string DeviceName { get; set; } = "flameboss";
     public string FriendlyName { get; set; } = "Flame Boss";
     public int PollSeconds { get; set; } = 5;
+    /// <summary>Stop the cook after the controller has been unreachable this long (env UNREACHABLETIMEOUTSECONDS).</summary>
+    public int UnreachableTimeoutSeconds { get; set; } = 180;
     /// <summary>MongoDB connection string for cook readings; unset disables logging to Mongo.</summary>
     public string? MongoDbUri { get; set; }
     public string MongoDbDatabase { get; set; } = "flameboss";

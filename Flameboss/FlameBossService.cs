@@ -11,6 +11,8 @@ public class FlameBossService
     public FlameBossService(IHttpClientFactory httpClientFactory, Configuration config, ILogger<FlameBossService> logger)
     {
         _httpClient = httpClientFactory.CreateClient();
+        // The default 100 s would let a powered-off controller stall each poll; a LAN page answers well within this.
+        _httpClient.Timeout = TimeSpan.FromSeconds(10);
         _flameBossUrl = config.FlameBossUrl; // Default IP
         _logger = logger;
     }
@@ -19,12 +21,14 @@ public class FlameBossService
     {
         string statushtml = await _httpClient.GetStringAsync(_flameBossUrl);
         string sethtml = await _httpClient.GetStringAsync(_flameBossUrl + "set");
+        // Any missing field throws, so a page that doesn't parse counts as a failed read (not logged, counts
+        // toward the unreachable auto-stop) instead of a reading of zeros. "---" (probe unplugged) is a real 0.
         FlamebossData.CurrentStatus = new FlameBossStatus
         {
-            Pit = ExtractNumber(statushtml, @"<td>\s*Pit\s*</td>\s*<td[^>]*>\s*(\d+)"),
-            Meat1 = ExtractNumber(statushtml, @"<td>\s*Meat\s+1\s*</td>\s*<td[^>]*>\s*(\d+|---)"),
+            Pit = ExtractNumber(statushtml, @"<td>\s*Pit\s*</td>\s*<td[^>]*>\s*(\d+|---)", "Pit"),
+            Meat1 = ExtractNumber(statushtml, @"<td>\s*Meat\s+1\s*</td>\s*<td[^>]*>\s*(\d+|---)", "Meat 1"),
             SetTemperature = ExtractSetTemperature(sethtml),
-            BlowerPercentage = ExtractNumber(statushtml, @"<td>\s*Blower\s*</td>\s*<td[^>]*>\s*(\d+|---)"),
+            BlowerPercentage = ExtractNumber(statushtml, @"<td>\s*Blower\s*</td>\s*<td[^>]*>\s*(\d+|---)", "Blower"),
             LastUpdate = DateTime.Now
         };
         FlamebossData.LastSuccessfulCheck = DateTime.Now;
@@ -37,27 +41,23 @@ public class FlameBossService
 
     }
     
-    private int ExtractSetTemperature(string htmlContent)
+    private static int ExtractSetTemperature(string htmlContent)
     {
-        if (string.IsNullOrWhiteSpace(htmlContent)) 
-            return 0;
-        
-        string pattern = @"name=[""']s[""']\s+[^>]*value=[""'](\d+)[""']";
-        var match = Regex.Match(htmlContent, pattern, 
-            RegexOptions.IgnoreCase);
-        
-        return match.Success && int.TryParse(match.Groups[1].Value, out int temp) ? temp : 0;
+        var match = Regex.Match(htmlContent, @"name=[""']s[""']\s+[^>]*value=[""'](\d*)[""']", RegexOptions.IgnoreCase);
+        if (!match.Success)
+            throw new InvalidDataException("Set temperature field not found on the controller's /set page");
+
+        return int.TryParse(match.Groups[1].Value, out int temp) ? temp : 0;
     }
-    
-    private int ExtractNumber(string html, string pattern)
+
+    private static int ExtractNumber(string html, string pattern, string field)
     {
         var match = Regex.Match(html, pattern, RegexOptions.IgnoreCase);
-        if (!match.Success) 
-            return 0;
+        if (!match.Success)
+            throw new InvalidDataException($"{field} not found on the controller's status page");
 
         string val = match.Groups[1].Value.Trim();
-        return val == "---" ? 0 : int.TryParse(val, out int n) ? n : 0;
-
+        return val == "---" ? 0 : int.Parse(val);
     }
     
     public async Task<SetTemperatureResponse> SetTemperature(int temperature)
