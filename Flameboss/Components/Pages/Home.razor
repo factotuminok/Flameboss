@@ -4,6 +4,8 @@
 @inject IDialogService DialogService
 @inject ISnackbar Snackbar
 @inject CookReadingStore CookReadings
+@inject IJSRuntime JS
+@using System.Globalization
 @rendermode InteractiveServer
 
 <PageTitle>Flameboss 400 Controller</PageTitle>
@@ -101,7 +103,7 @@
                         <MudTh>Highest meat</MudTh>
                     </HeaderContent>
                     <RowTemplate>
-                        <MudTd DataLabel="Cook date">@context.Start.ToLocalTime().ToString("ddd MMM d, yyyy h:mm tt")</MudTd>
+                        <MudTd DataLabel="Cook date">@FormatCookDate(context.Start)</MudTd>
                         <MudTd DataLabel="Total cook time">
                             @FormatDuration(context.Duration)
                             @if (context.CookId == FlamebossData.CookId)
@@ -192,6 +194,38 @@
             _historyError = ex.Message;
         }
     }
+
+    // The viewer's locale and time zone, read from the browser once the circuit is up; the server's culture and
+    // TZ until then (or if the browser reports something the server doesn't know).
+    private CultureInfo _viewerCulture = CultureInfo.CurrentCulture;
+    private TimeZoneInfo _viewerTimeZone = TimeZoneInfo.Local;
+
+    private record BrowserLocale(string Locale, string TimeZone);
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender)
+            return;
+        try
+        {
+            var browser = await JS.InvokeAsync<BrowserLocale>("flamebossLocale");
+            try { _viewerCulture = CultureInfo.GetCultureInfo(browser.Locale); }
+            catch (CultureNotFoundException) { Logger.LogWarning("Unknown browser locale {Locale}", browser.Locale); }
+            if (TimeZoneInfo.TryFindSystemTimeZoneById(browser.TimeZone, out var zone))
+                _viewerTimeZone = zone;
+            else
+                Logger.LogWarning("Unknown browser time zone {TimeZone}", browser.TimeZone);
+            StateHasChanged();
+        }
+        catch (Exception ex) when (ex is JSException or JSDisconnectedException or TaskCanceledException)
+        {
+            Logger.LogWarning(ex, "Couldn't read the browser's locale; using the server's");
+        }
+    }
+
+    // Culture's standard short date + short time, e.g. 11/8/2026 4:26 PM (en-US) or 08/11/2026 22:26 (en-GB).
+    private string FormatCookDate(DateTime utc) =>
+        TimeZoneInfo.ConvertTimeFromUtc(DateTime.SpecifyKind(utc, DateTimeKind.Utc), _viewerTimeZone).ToString("g", _viewerCulture);
 
     private static string FormatDuration(TimeSpan d) =>
         d.TotalHours >= 1 ? $"{(int)d.TotalHours}h {d.Minutes}m" : $"{d.Minutes}m {d.Seconds}s";

@@ -17,6 +17,8 @@ if (config.PollSeconds < 1)
     throw new InvalidOperationException("POLLSECONDS must be at least 1");
 if (config.UnreachableTimeoutSeconds < 1)
     throw new InvalidOperationException("UNREACHABLETIMEOUTSECONDS must be at least 1");
+if (config.AutoStartCheckSeconds < 0)
+    throw new InvalidOperationException("AUTOSTARTCHECKSECONDS must be 0 (disabled) or more");
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
 
@@ -30,6 +32,7 @@ builder.Services.AddSingleton<CookReadingStore>();
 builder.Services.AddHostedService(sp => sp.GetRequiredService<CookReadingStore>());
 builder.Services.AddSingleton<FlameBossService>();
 builder.Services.AddHostedService<FlameBossPollingService>();
+builder.Services.AddHostedService<CookAutoStartService>();
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 

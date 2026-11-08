@@ -15,6 +15,14 @@
 </head>
 
 <body>
+@* Lets the server format dates in the viewer's locale and time zone (Home.razor cook history). *@
+<script>
+    // The locale and zone the browser itself formats dates with.
+    window.flamebossLocale = () => {
+        const { locale, timeZone } = Intl.DateTimeFormat().resolvedOptions();
+        return { locale, timeZone };
+    };
+</script>
 <Routes @rendermode="InteractiveServer"/>
 <script src="_framework/blazor.web.js"></script>
 <script src="_content/MudBlazor/MudBlazor.min.js"></script>
