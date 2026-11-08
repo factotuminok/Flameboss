@@ -6,53 +6,69 @@
 @rendermode InteractiveServer
 
 <PageTitle>Flameboss 400 Controller</PageTitle>
-<h1>Flameboss 400 controller</h1>
-<MudGrid>
-    <MudItem sm="12" md="6" lg="2">
-        <MudText>Pit Temperature:</MudText>
-        <MudText>@_currentStatus.Pit</MudText>
+<MudText Typo="Typo.h4" HtmlTag="h1" Class="mb-4">Flameboss 400 controller</MudText>
+<MudGrid Spacing="2">
+    <MudItem xs="6" sm="3">
+        <MudPaper Class="pa-3" Elevation="1">
+            <MudText Typo="Typo.caption">Pit Temperature</MudText>
+            <MudText Typo="Typo.h5">@_currentStatus.Pit</MudText>
+        </MudPaper>
     </MudItem>
-    <MudItem sm="12" md="6" lg="2">
-        <MudText>Meat Temperature:</MudText>
-        <MudText>@_currentStatus.Meat1</MudText>
+    <MudItem xs="6" sm="3">
+        <MudPaper Class="pa-3" Elevation="1">
+            <MudText Typo="Typo.caption">Meat Temperature</MudText>
+            <MudText Typo="Typo.h5">@_currentStatus.Meat1</MudText>
+        </MudPaper>
     </MudItem>
-    <MudItem sm="12" md="6" lg="2">
-        <MudText>Blower Speed:</MudText>
-        <MudText>@_currentStatus.BlowerPercentage</MudText>
+    <MudItem xs="6" sm="3">
+        <MudPaper Class="pa-3" Elevation="1">
+            <MudText Typo="Typo.caption">Blower Speed</MudText>
+            <MudText Typo="Typo.h5">@_currentStatus.BlowerPercentage</MudText>
+        </MudPaper>
     </MudItem>
-    <MudItem sm="12" md="6" lg="2">
-        <MudText>Set Temperature:</MudText>
-        <MudText>@_currentStatus.SetTemperature</MudText>
+    <MudItem xs="6" sm="3">
+        <MudPaper Class="pa-3" Elevation="1">
+            <MudText Typo="Typo.caption">Set Temperature</MudText>
+            <MudText Typo="Typo.h5">@_currentStatus.SetTemperature</MudText>
+        </MudPaper>
     </MudItem>
-    <MudButton OnClick="SetTemperature_Callback">Set Temperature</MudButton>
-    <MudButton OnClick="ToggleCook_Callback">Toggle Cook</MudButton>
+    <MudItem xs="12">
+        <MudStack Row="true" Wrap="Wrap.Wrap" Spacing="2">
+            <MudButton Variant="Variant.Outlined" OnClick="SetTemperature_Callback">Set Temperature</MudButton>
+            <MudButton Variant="Variant.Outlined" OnClick="ToggleCook_Callback">Toggle Cook</MudButton>
+        </MudStack>
+    </MudItem>
+    <MudItem xs="12" lg="6">
+        <MudPaper Class="pa-2" Elevation="1">
+            <MudTimeSeriesChart ChartSeries="@_tempSeries"
+                                @bind-SelectedIndex="_index"
+                                Width="100%"
+                                Height="@ChartHeight"
+                                ChartOptions="@_tempOptions"
+                                AxisChartOptions="@_axisChartOptions"
+                                CanHideSeries="true"
+                                TimeLabelSpacing="TimeSpan.FromMinutes(5)"
+                                TimeLabelSpacingRounding="_roundedLabelSpacing"
+                                TimeLabelSpacingRoundingPadSeries="_roundedLabelSpacingPadSeries"
+                                DataMarkerTooltipTimeLabelFormat="HH:mm:ss"/>
+        </MudPaper>
+    </MudItem>
+    <MudItem xs="12" lg="6">
+        <MudPaper Class="pa-2" Elevation="1">
+            <MudTimeSeriesChart ChartSeries="@_blowerSeries"
+                                @bind-SelectedIndex="_index"
+                                Width="100%"
+                                Height="@ChartHeight"
+                                ChartOptions="@_blowerOptions"
+                                AxisChartOptions="@_axisChartOptions"
+                                CanHideSeries="true"
+                                TimeLabelSpacing="TimeSpan.FromMinutes(5)"
+                                TimeLabelSpacingRounding="_roundedLabelSpacing"
+                                TimeLabelSpacingRoundingPadSeries="_roundedLabelSpacingPadSeries"
+                                DataMarkerTooltipTimeLabelFormat="HH:mm:ss"/>
+        </MudPaper>
+    </MudItem>
 </MudGrid>
-<MudPaper Class="doc-section-component-container">
-    <MudTimeSeriesChart ChartSeries="@_tempSeries"
-                        @bind-SelectedIndex="_index"
-                        Width="@_width"
-                        Height="@_height"
-                        ChartOptions="@_tempOptions"
-                        AxisChartOptions="@_axisChartOptions"
-                        CanHideSeries="true"
-                        TimeLabelSpacing="TimeSpan.FromMinutes(5)"
-                        TimeLabelSpacingRounding="_roundedLabelSpacing"
-                        TimeLabelSpacingRoundingPadSeries="_roundedLabelSpacingPadSeries"
-                        DataMarkerTooltipTimeLabelFormat="HH:mm:ss"/>
-</MudPaper>
-<MudPaper Class="doc-section-component-container">
-    <MudTimeSeriesChart ChartSeries="@_blowerSeries"
-                        @bind-SelectedIndex="_index"
-                        Width="@_width"
-                        Height="@_height"
-                        ChartOptions="@_blowerOptions"
-                        AxisChartOptions="@_axisChartOptions"
-                        CanHideSeries="true"
-                        TimeLabelSpacing="TimeSpan.FromMinutes(5)"
-                        TimeLabelSpacingRounding="_roundedLabelSpacing"
-                        TimeLabelSpacingRoundingPadSeries="_roundedLabelSpacingPadSeries"
-                        DataMarkerTooltipTimeLabelFormat="HH:mm:ss"/>
-</MudPaper>
 
 @code{
     private PeriodicTimer? periodicTimer;
@@ -81,7 +97,9 @@
 
     private AxisChartOptions _axisChartOptions = new()
     {
-        XAxisLabelRotation = 90
+        XAxisLabelRotation = 90,
+        // Redraw to the container's size so the charts follow the window width.
+        MatchBoundsToSize = true
     };
 
     private TimeSeriesChartSeries _pitData = new();
@@ -96,8 +114,8 @@
     private bool _roundedLabelSpacing = false;
     private bool _roundedLabelSpacingPadSeries = false;
 
-    private string _width = "650px";
-    private string _height = "350px";
+    // Scales with the viewport height, within bounds that stay readable on phones and desktops.
+    private const string ChartHeight = "clamp(220px, 40vh, 380px)";
 
     protected override async void OnInitialized()
     {
