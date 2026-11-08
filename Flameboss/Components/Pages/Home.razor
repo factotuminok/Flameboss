@@ -34,8 +34,17 @@
     </MudItem>
     <MudItem xs="12">
         <MudStack Row="true" Wrap="Wrap.Wrap" Spacing="2">
-            <MudButton Variant="Variant.Outlined" OnClick="SetTemperature_Callback">Set Temperature</MudButton>
-            <MudButton Variant="Variant.Outlined" OnClick="ToggleCook_Callback">Toggle Cook</MudButton>
+            <MudButton Variant="Variant.Outlined"
+                       StartIcon="@Icons.Material.Filled.Thermostat"
+                       OnClick="SetTemperature_Callback">Set Temperature</MudButton>
+            @* Filled orange flame = cook running; outlined grey flame = not running. Re-read on every render (5 s timer + clicks). *@
+            <MudTooltip Text="@(FlamebossData.Cooking ? "Cook running: click to stop" : "Cook not running: click to start")">
+                <MudButton Variant="Variant.Outlined"
+                           StartIcon="@(FlamebossData.Cooking ? Icons.Material.Filled.LocalFireDepartment : Icons.Material.Outlined.LocalFireDepartment)"
+                           IconColor="@(FlamebossData.Cooking ? Color.Warning : Color.Default)"
+                           aria-label="@(FlamebossData.Cooking ? "Toggle cook (running)" : "Toggle cook (not running)")"
+                           OnClick="ToggleCook_Callback">Toggle Cook</MudButton>
+            </MudTooltip>
         </MudStack>
     </MudItem>
     <MudItem xs="12" lg="6">
