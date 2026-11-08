@@ -8,6 +8,7 @@ It talks directly to the controller's built-in web page on your LAN (no Flame Bo
 - **Web dashboard** (Blazor + MudBlazor): live pit, meat, set-point, and blower readings, time-series charts for the current cook, and a **Set Temperature** button that opens a dialog accepting 150–400 °F and sends it to the controller.
 - **REST API**: read status, set the pit target temperature, start/stop a cook, health checks.
 - **Home Assistant via MQTT**: publishes sensor state and auto-discovery config so the controller shows up as a device in Home Assistant.
+- **MongoDB cook log**: every poll during a cook is stored with a per-cook ID and timestamp, so past cooks can be reviewed later.
 
 ## How it works
 
@@ -21,9 +22,11 @@ flowchart LR
         API["REST API /api/*"]
         UI["Dashboard /"]
         Mqtt["MqttService"]
+        Store["CookReadingStore<br/>(queued writes)"]
     end
     HA["Home Assistant"]
     Broker["MQTT broker"]
+    Mongo[("MongoDB<br/>readings")]
 
     Poll --> Svc
     Svc -- "GET /, GET /set" --> FB
@@ -32,6 +35,7 @@ flowchart LR
     Data --> API
     Data --> UI
     Poll --> Mqtt --> Broker --> HA
+    Poll --> Store --> Mongo
 ```
 
 The Flame Boss 400 serves a plain HTML page on its local IP:
@@ -48,10 +52,10 @@ Sample captures of both pages are in `Flameboss/output.html` and `Flameboss/set.
 
 Polling only happens while a cook is active. Start/stop a cook with the dashboard's **Toggle Cook** button or `GET /api/toggle-cook`.
 
-- Starting a cook clears history, takes an immediate reading, then polls every `POLLSECONDS`.
-- Each reading is appended to the in-memory history that feeds the charts, and is published to MQTT.
-- Stopping a cook clears the history.
-- Cook state and history live only in memory and are lost when the app restarts.
+- Starting a cook clears history, assigns a new cook ID (a GUID), takes an immediate reading, then polls every `POLLSECONDS`.
+- Each poll's reading is appended to the in-memory history that feeds the charts, published to MQTT, and logged to MongoDB under the cook ID.
+- Stopping a cook clears the history and the cook ID.
+- Cook state and the chart history live only in memory and are lost when the app restarts; the MongoDB log is kept.
 
 ## Configuration
 
@@ -66,6 +70,8 @@ Settings are read through ASP.NET Core configuration: environment variables, or 
 | `DEVICENAME` | `flameboss` | Home Assistant device identifier. |
 | `FRIENDLYNAME` | `Flame Boss` | Home Assistant device name and sensor name prefix. |
 | `POLLSECONDS` | `5` | Poll interval, at least 1. |
+| `MONGODBURI` | (none) | MongoDB connection string for the cook log, e.g. `mongodb://user:pass@host:27017/flameboss?authSource=flameboss`. **Secret** (contains the password). Unset: readings aren't logged (warned at startup). |
+| `MONGODBDATABASE` | `flameboss` | Database for the cook log. |
 
 The app exits at startup if `FLAMEBOSSURL` is missing, if `POLLSECONDS` is below 1, or if it can't connect to the MQTT broker.
 
@@ -113,8 +119,8 @@ The dashboard is at <http://localhost:5163> (container port 8080).
 
 The homelab k3s cluster deploys it with Argo CD from the private `factotuminok/homelab` repo (`apps/flameboss`), at `https://flameboss.lewisfamily4.com`:
 
-- Non-secret settings (`FLAMEBOSSURL`, `MQTTBROKER`, `DEVICENAME`, `FRIENDLYNAME`, `POLLSECONDS`) are plain `env` values in the Deployment.
-- `MQTTUSERNAME` and `MQTTPASSWORD` come from the existing Kubernetes Secret `mosquitto` (keys `MQTT_USER`, `MQTT_PASSWORD`). The manifests only reference that Secret.
+- Non-secret settings (`FLAMEBOSSURL`, `MQTTBROKER`, `DEVICENAME`, `FRIENDLYNAME`, `POLLSECONDS`, `MONGODBDATABASE`) are plain `env` values in the Deployment.
+- `MQTTUSERNAME` and `MQTTPASSWORD` come from the existing Kubernetes Secret `mosquitto` (keys `MQTT_USER`, `MQTT_PASSWORD`). `MONGODBURI` is built from Secret `flameboss-mongo` (keys `MONGO_USER`, `MONGO_PASS`), a Mongo user with `readWrite` on the `flameboss` database only. The manifests only reference these Secrets.
 - The broker is the in-cluster `mosquitto` Service.
 - Run one replica only: cook state is kept in memory.
 
@@ -160,11 +166,38 @@ At startup the app publishes discovery config to `homeassistant/sensor/flameboss
 
 Discovery messages aren't retained. If Home Assistant or the broker restarts, restart this app so the sensors get discovered again.
 
+## Cook log (MongoDB)
+
+On every poll during a cook, one document is inserted into the `readings` collection:
+
+```json
+{
+  "cookId": "8a13f449-b1f9-435c-9db2-9083ea4d1fd5",
+  "timestamp": { "$date": "2026-11-08T22:00:45.686Z" },
+  "pit": 187,
+  "meat1": 178,
+  "setTemperature": 225,
+  "blowerPercentage": 100
+}
+```
+
+- `cookId` is new for every cook; `timestamp` is the UTC time of the reading. The collection has an index on `{cookId, timestamp}` (created on the first write).
+- Writes are queued in memory and written in the background, so a slow or unavailable MongoDB never delays polling, MQTT, or the dashboard. While MongoDB is down, the app retries every 5 s and writes the backlog in order once it's back. Readings still queued are lost if the app restarts during an outage; the queue keeps the newest 10,000.
+
+List cooks with their reading counts and time range:
+
+```js
+db.readings.aggregate([
+  { $group: { _id: "$cookId", readings: { $sum: 1 }, start: { $min: "$timestamp" }, end: { $max: "$timestamp" } } },
+  { $sort: { start: -1 } }
+])
+```
+
 ## Limitations
 
 - Only **Meat 1** is read. The device page also shows Meat 2 and Meat 3, but they're ignored.
 - Fahrenheit only.
-- Cook history is kept in memory only. There's no persistence across restarts and no multi-instance support.
+- The dashboard's chart history is kept in memory only (the MongoDB cook log is persistent). No multi-instance support.
 - Setting the temperature through the REST API requires an active cook (the dashboard button doesn't).
 - Data comes from scraping the controller's HTML, so a firmware change to that page would break parsing.
 
@@ -177,6 +210,7 @@ Flameboss/
   FlameBossService.cs         Device scraping, set-temperature POST, start/stop/toggle cook
   FlameBossPollingService.cs  Background poll loop (active only during a cook)
   FlamebossData.cs            Static in-memory state and cook history
+  CookReadingStore.cs         MongoDB cook log (queued background writes)
   FlameBossController.cs      REST API
   MqttService.cs              MQTT connection, HA discovery, state publishing
   Components/Pages/Home.razor Dashboard and charts

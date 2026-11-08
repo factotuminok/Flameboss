@@ -3,7 +3,7 @@ namespace Flameboss;
 /// <summary>
 /// Bound from IConfiguration at startup; keys match property names case-insensitively,
 /// so the env vars FLAMEBOSSURL, MQTTBROKER, MQTTUSERNAME, MQTTPASSWORD, DEVICENAME,
-/// FRIENDLYNAME and POLLSECONDS (or user-secrets with the same names) set them.
+/// FRIENDLYNAME, POLLSECONDS, MONGODBURI and MONGODBDATABASE (or user-secrets with the same names) set them.
 /// </summary>
 public record Configuration
 {
@@ -14,4 +14,7 @@ public record Configuration
     public string DeviceName { get; set; } = "flameboss";
     public string FriendlyName { get; set; } = "Flame Boss";
     public int PollSeconds { get; set; } = 5;
+    /// <summary>MongoDB connection string for cook readings; unset disables logging to Mongo.</summary>
+    public string? MongoDbUri { get; set; }
+    public string MongoDbDatabase { get; set; } = "flameboss";
 }

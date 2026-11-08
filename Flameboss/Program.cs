@@ -24,6 +24,8 @@ builder.Services.AddMudServices();
 builder.Services.AddSingleton(config);
 builder.Services.AddHttpClient();
 builder.Services.AddSingleton<MqttService>();
+builder.Services.AddSingleton<CookReadingStore>();
+builder.Services.AddHostedService(sp => sp.GetRequiredService<CookReadingStore>());
 builder.Services.AddSingleton<FlameBossService>();
 builder.Services.AddHostedService<FlameBossPollingService>();
 builder.Services.AddControllers();

@@ -17,6 +17,8 @@ public static class FlamebossData
     }
 
     public static bool Cooking { get; set; }
+    /// <summary>New for every cook (set by StartCook, cleared by StopCook); tags the readings logged to Mongo.</summary>
+    public static string? CookId { get; set; }
     public static DateTime LastSuccessfulCheck { get; set; }
     public static DateTime LastPoll { get; set; } 
     public static List<FlameBossStatus> CookStatusList { get; set; }

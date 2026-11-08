@@ -91,9 +91,10 @@ public class FlameBossService
     public async Task<bool> StartCook()
     {
         FlamebossData.CookStatusList = new List<FlameBossStatus>();
+        FlamebossData.CookId = Guid.NewGuid().ToString();
         FlamebossData.Cooking =  true;
         await GetStatus();
-        _logger.LogInformation("Cooking started");
+        _logger.LogInformation("Cooking started, cook {CookId}", FlamebossData.CookId);
         return FlamebossData.Cooking;
     }
     
@@ -101,6 +102,7 @@ public class FlameBossService
     {
         FlamebossData.CookStatusList.Clear();
         FlamebossData.Cooking =  false;
+        FlamebossData.CookId = null;
         _logger.LogInformation("Cooking stopped");
         return FlamebossData.Cooking;
     }
