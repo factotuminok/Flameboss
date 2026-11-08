@@ -104,4 +104,10 @@ public class FlameBossService
         _logger.LogInformation("Cooking stopped");
         return FlamebossData.Cooking;
     }
+
+    /// <summary>Stops the cook if one is running, otherwise starts one. Returns whether a cook is now running.</summary>
+    public async Task<bool> ToggleCook()
+    {
+        return FlamebossData.Cooking ? StopCook() : await StartCook();
+    }
 }

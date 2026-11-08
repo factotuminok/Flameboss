@@ -4,4 +4,14 @@
     build:
       context: .
       dockerfile: Flameboss/Dockerfile
-
+    ports:
+      - "5163:8080"
+    # Values come from the shell or a git-ignored .env file next to this file.
+    environment:
+      - FLAMEBOSSURL
+      - MQTTBROKER
+      - MQTTUSERNAME
+      - MQTTPASSWORD
+      - DEVICENAME
+      - FRIENDLYNAME
+      - POLLSECONDS

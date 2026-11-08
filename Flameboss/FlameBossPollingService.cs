@@ -1,5 +1,3 @@
-using System.Text.RegularExpressions;
-
 namespace Flameboss;
 
 public class FlameBossPollingService: BackgroundService
@@ -16,8 +14,7 @@ public class FlameBossPollingService: BackgroundService
         _mqtt = mqtt;
         _flameBossService = flameBossService;
         _logger = logger;
-        if(config.PollSeconds != null)
-            millisecondsDelay = Convert.ToInt32(config.PollSeconds) * 1000;
+        millisecondsDelay = config.PollSeconds * 1000;
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)

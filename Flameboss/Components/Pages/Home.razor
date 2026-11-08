@@ -1,6 +1,6 @@
 ﻿@page "/"
-@using System.Net
-@inject HttpClient Http
+@inject FlameBossService FlameBoss
+@inject ILogger<Home> Logger
 @rendermode InteractiveServer
 
 <PageTitle>Flameboss 400 Controller</PageTitle>
@@ -178,18 +178,15 @@
         }
     }
 
-    private async void ToggleCook_Callback(MouseEventArgs obj)
+    private async Task ToggleCook_Callback(MouseEventArgs obj)
     {
-        string? result;
         try
         {
-            // GET request
-            var response = await Http.GetFromJsonAsync<System.String>("http://localhost:5163/api/toggle-cook");
-            result = response?.ToString() ?? "No data";
+            await FlameBoss.ToggleCook();
         }
         catch (Exception ex)
         {
-            result = $"Error: {ex.Message}";
+            Logger.LogError(ex, "Toggle cook failed");
         }
     }
 

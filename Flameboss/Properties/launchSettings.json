@@ -7,14 +7,7 @@
       "launchBrowser": true,
       "applicationUrl": "http://localhost:5163",
       "environmentVariables": {
-        "ASPNETCORE_ENVIRONMENT": "Development",
-        "FLAMEBOSSURL": "http://192.168.1.178/",
-        "MQTTBROKER": "192.168.1.102",
-        "MQTTUSERNAME": "mqtt",
-        "MQTTPASSWORD": "MJL4$l3w1s",
-        "DEVICENAME": "flameboss_bbq",
-        "FRIENDLYNAME": "Flame Boss BBQ",
-        "POLLSECONDS": "5"
+        "ASPNETCORE_ENVIRONMENT": "Development"
       }
     },
     "https": {

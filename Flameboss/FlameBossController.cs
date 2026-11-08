@@ -92,18 +92,8 @@ public class FlameBossController : ControllerBase
     [HttpGet("toggle-cook")]
     public async Task<IActionResult> ToggleCook()
     {
-        if (FlamebossData.Cooking)
-        {
-            _flameBossService.StopCook();
-            _logger.LogInformation($"Cook stopped");
-            return Ok($"Cook stopped");
-        }
-        else
-        {
-            await _flameBossService.StartCook();
-            _logger.LogInformation($"Cook started");
-            return Ok($"Cook started");
-        }
+        var cooking = await _flameBossService.ToggleCook();
+        return Ok(cooking ? "Cook started" : "Cook stopped");
     }
     
     /// <summary>

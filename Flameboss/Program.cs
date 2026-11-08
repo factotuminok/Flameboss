@@ -7,17 +7,14 @@ var builder = WebApplication.CreateBuilder(args);
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();
 
-// Configuration (edit these!)
-var config = new Configuration
-{
-    FlameBossUrl = Environment.GetEnvironmentVariable("FLAMEBOSSURL"),      // Default Flame Boss AP
-    MqttBroker = Environment.GetEnvironmentVariable("MQTTBROKER"),               // Your MQTT broker
-    MqttUsername = Environment.GetEnvironmentVariable("MQTTUSERNAME"),                      // MQTT Username
-    MqttPassword = Environment.GetEnvironmentVariable("MQTTPASSWORD"),                // MQTT Password
-    DeviceName = Environment.GetEnvironmentVariable("DEVICENAME"),
-    FriendlyName = Environment.GetEnvironmentVariable("FRIENDLYNAME"),
-    PollSeconds = Environment.GetEnvironmentVariable("POLLSECONDS"),
-};
+// Settings come from env vars (the k8s Deployment and its Secret) or, in Development, dotnet user-secrets.
+var config = builder.Configuration.Get<Configuration>() ?? new Configuration();
+if (string.IsNullOrWhiteSpace(config.FlameBossUrl))
+    throw new InvalidOperationException("FLAMEBOSSURL is not set");
+if (!config.FlameBossUrl.EndsWith('/'))
+    config.FlameBossUrl += "/";
+if (config.PollSeconds < 1)
+    throw new InvalidOperationException("POLLSECONDS must be at least 1");
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
 

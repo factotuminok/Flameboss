@@ -55,58 +55,70 @@ Polling only happens while a cook is active. Start/stop a cook with the dashboar
 
 ## Configuration
 
-All settings come from environment variables. **Set all of them**; the defaults in `Configuration.cs` are overwritten by the environment values, even when a variable is unset.
+Settings are read through ASP.NET Core configuration: environment variables, or `dotnet user-secrets` when running locally in Development. Nothing is hard-coded in the repo. Names are case-insensitive.
 
-| Variable | Example | Notes |
+| Variable | Default | Notes |
 |---|---|---|
-| `FLAMEBOSSURL` | `http://192.168.1.178/` | Controller base URL. **Must end with `/`**, because `set` is appended directly. |
-| `MQTTBROKER` | `192.168.1.102` | MQTT broker host (default port 1883). Falls back to `localhost` if unset. |
-| `MQTTUSERNAME` | `mqtt` | MQTT username. |
-| `MQTTPASSWORD` | | MQTT password. |
-| `DEVICENAME` | `flameboss_bbq` | Home Assistant device identifier. |
-| `FRIENDLYNAME` | `Flame Boss BBQ` | Home Assistant device name and sensor name prefix. |
-| `POLLSECONDS` | `5` | Poll interval. **Required**: if unset it becomes `0`, and the poll loop runs without any delay. |
+| `FLAMEBOSSURL` | (required) | Controller base URL, e.g. `http://192.168.1.178/`. A trailing `/` is added if missing. |
+| `MQTTBROKER` | `localhost` | MQTT broker host (port 1883). |
+| `MQTTUSERNAME` | (none) | MQTT username. Treat as a secret. |
+| `MQTTPASSWORD` | (none) | MQTT password. **Secret**: never put it in a committed file. |
+| `DEVICENAME` | `flameboss` | Home Assistant device identifier. |
+| `FRIENDLYNAME` | `Flame Boss` | Home Assistant device name and sensor name prefix. |
+| `POLLSECONDS` | `5` | Poll interval, at least 1. |
 
-The app connects to the MQTT broker at startup. If the broker can't be reached, the app won't start.
+The app exits at startup if `FLAMEBOSSURL` is missing, if `POLLSECONDS` is below 1, or if it can't connect to the MQTT broker.
 
 ## Running
 
 ### Locally
 
-Requires the .NET 10 SDK.
+Requires the .NET 10 SDK. Store the settings as user secrets; they live in your user profile, outside the repo:
 
 ```sh
-export FLAMEBOSSURL=http://192.168.1.178/
-export MQTTBROKER=192.168.1.102
-export MQTTUSERNAME=mqtt
-export MQTTPASSWORD=changeme
-export DEVICENAME=flameboss_bbq
-export FRIENDLYNAME="Flame Boss BBQ"
-export POLLSECONDS=5
-
-dotnet run --project Flameboss --launch-profile http
+cd Flameboss
+dotnet user-secrets set FLAMEBOSSURL http://192.168.1.178/
+dotnet user-secrets set MQTTBROKER 192.168.1.3
+dotnet user-secrets set MQTTUSERNAME mqtt
+dotnet user-secrets set MQTTPASSWORD '<password>'
+dotnet user-secrets set DEVICENAME flameboss_bbq
+dotnet user-secrets set FRIENDLYNAME "Flame Boss BBQ"
+dotnet run --launch-profile http
 ```
 
-The dashboard is at <http://localhost:5163>. The `http` profile in `Flameboss/Properties/launchSettings.json` also sets these variables, so you can edit them there instead.
+The dashboard is at <http://localhost:5163>. Exported environment variables override user secrets.
 
-### Docker
+### Docker Compose
+
+`compose.yaml` passes the variables through from your shell, or from a `.env` file next to it (git-ignored by `*.env`):
 
 ```sh
-docker build -f Flameboss/Dockerfile -t flameboss .
-docker run -d --name flameboss -p 5163:8080 \
-  -e FLAMEBOSSURL=http://192.168.1.178/ \
-  -e MQTTBROKER=192.168.1.102 \
-  -e MQTTUSERNAME=mqtt \
-  -e MQTTPASSWORD=changeme \
-  -e DEVICENAME=flameboss_bbq \
-  -e FRIENDLYNAME="Flame Boss BBQ" \
-  -e POLLSECONDS=5 \
-  flameboss
+cat > .env <<'EOF'
+FLAMEBOSSURL=http://192.168.1.178/
+MQTTBROKER=192.168.1.3
+MQTTUSERNAME=mqtt
+MQTTPASSWORD=<password>
+DEVICENAME=flameboss_bbq
+FRIENDLYNAME=Flame Boss BBQ
+POLLSECONDS=5
+EOF
+docker compose up --build
 ```
 
-The container listens on port 8080. `compose.yaml` only builds the image; add `ports:` and `environment:` there before using `docker compose up`.
+The dashboard is at <http://localhost:5163> (container port 8080).
 
-> The dashboard's **Toggle Cook** button calls the hard-coded URL `http://localhost:5163/api/toggle-cook` (`Components/Pages/Home.razor`). In Docker this only works if you map host port 5163 to container port 8080, as in the example above. Otherwise, use the API directly.
+### Kubernetes (k3s)
+
+`.github/workflows/image.yaml` builds `ghcr.io/factotuminok/flameboss:{latest,sha-<commit>}` (linux/amd64) on every push to `main`.
+
+The homelab k3s cluster deploys it with Argo CD from the private `factotuminok/homelab` repo (`apps/flameboss`), at `https://flameboss.lewisfamily4.com`:
+
+- Non-secret settings (`FLAMEBOSSURL`, `MQTTBROKER`, `DEVICENAME`, `FRIENDLYNAME`, `POLLSECONDS`) are plain `env` values in the Deployment.
+- `MQTTUSERNAME` and `MQTTPASSWORD` come from the existing Kubernetes Secret `mosquitto` (keys `MQTT_USER`, `MQTT_PASSWORD`). The manifests only reference that Secret.
+- The broker is the in-cluster `mosquitto` Service.
+- Run one replica only: cook state is kept in memory.
+
+To deploy a new build, set the image tag in `apps/flameboss/kustomization.yaml` in the homelab repo and Sync `flameboss` in Argo CD. `apps/flameboss/README.md` there has the details.
 
 ## REST API
 
@@ -160,9 +172,9 @@ Discovery messages aren't retained. If Home Assistant or the broker restarts, re
 
 ```
 Flameboss/
-  Program.cs                  DI setup, env-var config, endpoint mapping
-  Configuration.cs            Settings record
-  FlameBossService.cs         Device scraping, set-temperature POST, start/stop cook
+  Program.cs                  DI setup, settings binding/validation, endpoint mapping
+  Configuration.cs            Settings record (bound from env vars / user secrets)
+  FlameBossService.cs         Device scraping, set-temperature POST, start/stop/toggle cook
   FlameBossPollingService.cs  Background poll loop (active only during a cook)
   FlamebossData.cs            Static in-memory state and cook history
   FlameBossController.cs      REST API
@@ -170,5 +182,6 @@ Flameboss/
   Components/Pages/Home.razor Dashboard and charts
   output.html, set.html       Sample controller pages (parsing reference)
   Dockerfile
-compose.yaml
+compose.yaml                  Local container run; settings from shell or .env
+.github/workflows/image.yaml  Builds and pushes ghcr.io/factotuminok/flameboss
 ```
