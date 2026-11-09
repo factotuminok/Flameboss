@@ -54,7 +54,7 @@ Polling only happens while a cook is active. Start/stop a cook with the dashboar
 
 - Starting a cook clears history, assigns a new cook ID (a GUID), takes an immediate reading, then polls every `POLLSECONDS`.
 - Each poll's reading is appended to the in-memory history that feeds the charts, published to MQTT, and logged to MongoDB under the cook ID.
-- Stopping a cook clears the history and the cook ID.
+- Stopping a cook clears the history and the cook ID, and publishes `0` to every MQTT sensor (pit, meat 1, blower, set temp) so Home Assistant doesn't keep showing the last reading. This includes the automatic stop below.
 - If the controller can't be read for `UNREACHABLETIMEOUTSECONDS` (default 180 s, i.e. 3 minutes) during a cook, the cook is stopped automatically and a warning is logged. Each read times out after 10 s, so the stop can come up to ~10 s after the limit. The clock starts when a cook starts, so a cook started while the controller is off still gets the full time.
 - **Auto-start:** separately from the cook poll, every `AUTOSTARTCHECKSECONDS` (default 300 s, i.e. 5 minutes; `0` disables it) while no cook is running, the app reads the controller and starts a cook if the read succeeds (the controller is on). It's armed when the app starts and whenever a check finds the controller unreachable, and disarmed once a cook runs. So a cook resumes by itself after an app restart or when you power the controller on, but a cook you stop while the controller stays on (cool-down) stays stopped until the controller has been off.
 - Cook state and the chart history live only in memory and are lost when the app restarts; the MongoDB log is kept.
@@ -160,7 +160,7 @@ Values the controller shows as `---` (for example, an unplugged probe) are repor
 
 ## Home Assistant (MQTT)
 
-At startup the app publishes discovery config to `homeassistant/sensor/flameboss_<id>/config`. On every poll during a cook, it publishes state to `homeassistant/sensor/flameboss_<id>/state`:
+At startup the app publishes discovery config to `homeassistant/sensor/flameboss_<id>/config`. On every poll during a cook, it publishes state to `homeassistant/sensor/flameboss_<id>/state`. When a cook stops (manually or by the unreachable auto-stop), it publishes `0` to every state topic; a poll that was in flight when the cook stopped is not published.
 
 | `<id>` | Sensor | Unit |
 |---|---|---|

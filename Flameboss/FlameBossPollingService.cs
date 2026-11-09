@@ -56,7 +56,7 @@ public class FlameBossPollingService: BackgroundService
                     // Only stop the cook this poll belongs to; a cook started meanwhile has its own clock.
                     if (unreachableFor >= _unreachableTimeout && FlamebossData.CookId == cookId)
                     {
-                        _flameBossService.StopCook();
+                        await _flameBossService.StopCook();
                         _logger.LogWarning("Stopped cook {CookId}: controller unreachable for {Seconds:F0}s (limit {Limit}s)",
                             cookId, unreachableFor.TotalSeconds, _unreachableTimeout.TotalSeconds);
                     }
@@ -66,7 +66,7 @@ public class FlameBossPollingService: BackgroundService
                 {
                     try
                     {
-                        await _mqtt.UpdateAndPublish(temps);
+                        await _mqtt.UpdateAndPublish(temps, cookId);
                     }
                     catch (Exception ex)
                     {

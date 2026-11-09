@@ -8,6 +8,8 @@ public class MqttService
     private readonly Configuration _config;
     private readonly ILogger<MqttService> _logger;
     public FlameBossStatus CurrentTemps { get; private set; } = new();
+    // Serializes publishes so a poll that read before a stop can't publish its reading after the stop's zeros.
+    private readonly SemaphoreSlim _publishLock = new(1, 1);
 
     public MqttService(Configuration config, ILogger<MqttService> logger)
     {
@@ -27,10 +29,42 @@ public class MqttService
         PublishHomeAssistantDiscovery();
     }
 
-    public async Task UpdateAndPublish(FlameBossStatus temps)
+    /// <summary>Publishes a poll's reading, unless the cook it belongs to has been stopped (or replaced) since the read.</summary>
+    public async Task UpdateAndPublish(FlameBossStatus temps, string cookId)
     {
-        CurrentTemps = temps;
+        await _publishLock.WaitAsync();
+        try
+        {
+            if (FlamebossData.CookId != cookId)
+            {
+                return;
+            }
+            CurrentTemps = temps;
+            await PublishState(temps);
+        }
+        finally
+        {
+            _publishLock.Release();
+        }
+    }
 
+    /// <summary>Sets every sensor to 0 so Home Assistant doesn't keep showing the stopped cook's last reading.</summary>
+    public async Task PublishCookStopped()
+    {
+        await _publishLock.WaitAsync();
+        try
+        {
+            CurrentTemps = new FlameBossStatus { LastUpdate = DateTime.Now };
+            await PublishState(CurrentTemps);
+        }
+        finally
+        {
+            _publishLock.Release();
+        }
+    }
+
+    private async Task PublishState(FlameBossStatus temps)
+    {
         var topics = new[]
         {
             ("pit", temps.Pit),
@@ -50,7 +84,6 @@ public class MqttService
                 await _client.PublishAsync(applicationMessage);
             }
         }
-        
     }
 
     private async void PublishHomeAssistantDiscovery()

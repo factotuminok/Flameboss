@@ -7,14 +7,16 @@ public class FlameBossService
     private readonly HttpClient _httpClient;
     private readonly string _flameBossUrl;
     private readonly ILogger<FlameBossService> _logger;
+    private readonly MqttService _mqtt;
     
-    public FlameBossService(IHttpClientFactory httpClientFactory, Configuration config, ILogger<FlameBossService> logger)
+    public FlameBossService(IHttpClientFactory httpClientFactory, MqttService mqtt, Configuration config, ILogger<FlameBossService> logger)
     {
         _httpClient = httpClientFactory.CreateClient();
         // The default 100 s would let a powered-off controller stall each poll; a LAN page answers well within this.
         _httpClient.Timeout = TimeSpan.FromSeconds(10);
         _flameBossUrl = config.FlameBossUrl; // Default IP
         _logger = logger;
+        _mqtt = mqtt;
     }
     
     public async Task<FlameBossStatus> GetStatus()
@@ -98,18 +100,26 @@ public class FlameBossService
         return FlamebossData.Cooking;
     }
     
-    public bool StopCook()
+    public async Task<bool> StopCook()
     {
         FlamebossData.CookStatusList.Clear();
         FlamebossData.Cooking =  false;
         FlamebossData.CookId = null;
         _logger.LogInformation("Cooking stopped");
+        try
+        {
+            await _mqtt.PublishCookStopped();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to publish zeroed Flame Boss data to MQTT after stopping the cook");
+        }
         return FlamebossData.Cooking;
     }
 
     /// <summary>Stops the cook if one is running, otherwise starts one. Returns whether a cook is now running.</summary>
     public async Task<bool> ToggleCook()
     {
-        return FlamebossData.Cooking ? StopCook() : await StartCook();
+        return FlamebossData.Cooking ? await StopCook() : await StartCook();
     }
 }
